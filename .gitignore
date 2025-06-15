@@ -1,0 +1,53 @@
+
+# ── Python ─────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.env
+.venv
+venv/
+.ipynb_checkpoints/
+
+# ── macOS & Linux junk ─────────────────────────────────
+.DS_Store
+Icon?
+*.swp
+*.swo
+
+# ── Logs & misc ────────────────────────────────────────
+*.log
+*.tmp
+*.bak
+*.old
+*~
+
+# ── Compiled / binary blobs ────────────────────────────
+*.o
+*.out
+*.a
+*.so
+*.dll
+*.exe
+*.class
+
+# ── Coverage / test reports ───────────────────────────
+htmlcov/
+coverage.*
+*.cover
+.cache/
+pytest_cache/
+.coverage
+
+# ── VS Code / JetBrains / Editors ─────────────────────
+.vscode/
+.idea/
+*.iml
+
+# Ruff cache
+.ruff_cache/
+
+# Build artifacts
+*.egg-info/
+build/
