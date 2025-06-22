@@ -1,4 +1,3 @@
-
 # ── Python ─────────────────────────────────────────────
 __pycache__/
 *.py[cod]
@@ -40,10 +39,8 @@ coverage.*
 pytest_cache/
 .coverage
 
-# ── VS Code / JetBrains / Editors ─────────────────────
+# ── VS Code ─────────────────────
 .vscode/
-.idea/
-*.iml
 
 # Ruff cache
 .ruff_cache/
