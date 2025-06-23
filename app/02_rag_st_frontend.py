@@ -87,7 +87,7 @@ if "messages" not in st.session_state:
 
 
 # Create main chat container
-chat_container = st.container(height=400)
+chat_container = st.container()
 
 # Display all chat messages
 with chat_container:
