@@ -1,6 +1,5 @@
 import tiktoken
 import numpy as np
-from config import API_KEY
 from openai import OpenAI
 
 
