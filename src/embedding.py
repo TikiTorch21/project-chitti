@@ -1,24 +1,37 @@
 from chunking import *
 import torch
 from transformers import AutoTokenizer, AutoModel
+from pathlib import Path
+import os
+import warnings
+from sentence_transformers import SentenceTransformer
+import pymupdf
 
-model_name = "nvidia/NV-Embed-v2"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModel.from_pretrained(model_name, trust_remote_code=True)
+warnings.filterwarnings("ignore", message=".*resource_tracker.*")
+
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+
+
 
 
 def get_embeddings(chunks, batch_size=8):
-    all_embeddings = []
+    return model.encode(chunks, convert_to_tensor=True, show_progress_bar=True, batch_size=batch_size)
 
-    for i in range(0, len(chunks), batch_size):
-        batch = chunks[i:i+batch_size]
-        inputs = tokenizer(batch, padding=True, truncation=True, return_tensors="pt").to(device)
-        
-        with torch.no_grad():
-            outputs = model(**inputs)
-            # Mean pooling
-            embeddings = outputs.last_hidden_state.mean(dim=1)
-        
-        all_embeddings.append(embeddings.cpu())
-    
-    return torch.cat(all_embeddings, dim=0)  # Shape: (num_chunks, embedding_dim)
+def extract_text(pdf_bytes: bytes) -> str:
+    """
+    Extract all text from a PDF using pymupdf
+    """
+    doc = pymupdf.open(stream=pdf_bytes, filetype='pdf')
+    return "\n\n".join(page.get_text("text") for page in doc)
+
+
+
+PDF_PATH = Path('/Users/prateekM/Desktop/1_Projects/Project Chitti/data/raw/test pdfs/basketball_pdf.pdf')
+with open(PDF_PATH, "rb") as f:
+    pdf_bytes = f.read()
+pdf_text = extract_text(pdf_bytes=pdf_bytes)
+embeddings = get_embeddings(chunk_text(pdf_text, goal="exact_size", chunk_size=100, overlap=20))
+print(embeddings.shape)   # e.g. torch.Size([3, 4096])
