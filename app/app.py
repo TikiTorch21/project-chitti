@@ -1,15 +1,27 @@
+import sys
+import os
+project_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, project_path)
 import base64
-
+from src.utils.pdf_utils import *
+from src.chunking_embedding import *
 import pymupdf
 from PIL import Image
 from datetime import datetime
 
 import streamlit as st
 
-
 # ------------ Config ------------
 MAX_FILES = 3
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+PROMPT = '''
+You are a helpful teaching assistant. Your task is to answer the user's question given the context of the information. 
+Always use the information given to you to answer the question, and do not make anything up. 
+
+Question: {}
+
+Context: {}
+'''
 
 
 # ------------ Helper ------------
@@ -68,7 +80,7 @@ with st.sidebar:
 
                     # 2 - Extract & Display the PDF text
                     with st.expander("Show extracted text"):
-                        text = extract_text(pdf_bytes)
+                        text = clean_pdf_text(text=extract_text(pdf_bytes))
                         if text.strip():
                             st.text_area("Full text", text, height=600)
                         else:
@@ -85,6 +97,9 @@ with st.sidebar:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+# Initialize messages list in session_state if not already
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 # Create main chat container
 chat_container = st.container()
@@ -106,15 +121,51 @@ if prompt := st.chat_input("Ask Chitti"):
         "timestamp": timestamp
     }
     st.session_state.messages.append(user_message)
-    
-    # Display the new user message
+
+    # Display the new user message immediately
     with chat_container:
         with st.chat_message("user"):
             st.write(prompt)
             st.caption(f"*{timestamp}*")
+
+    # Reply to user
+    # This is also where chunks are being returned
+
+    prompt_embeddings = get_embeddings(chunks=prompt)
+    chunks = recursive_char_split(text=text)
+    pdf_embeddings = get_embeddings(chunks=chunks)
     
+    embedding_sim_score: dict = {c+1: cosine_sim(ce, prompt_embeddings).item() for c, ce in enumerate(pdf_embeddings)}
+    # relevant_chunk = chunks[max(embedding_sim_score, key=embedding_sim_score.get)]
+    relevant_chunk_ids = (sorted(embedding_sim_score, key=embedding_sim_score.get, reverse=True)[:3])
+    relevant_chunks = [chunks[id] for id in relevant_chunk_ids]
+    
+
+    
+
+
+
+    # Display formatted prompt..
+    reply_text = f"You said: {PROMPT.format(prompt, relevant_chunks)}"
+    reply_timestamp = datetime.now().strftime("%H:%M:%S")
+
+
+    assistant_message = {
+        "role": "assistant",
+        "content": reply_text,
+        "timestamp": reply_timestamp
+    }
+    st.session_state.messages.append(assistant_message)
+
+    # Display assistant reply immediately
+    with chat_container:
+        with st.chat_message("assistant"):
+            st.write(reply_text)
+            st.caption(f"*{reply_timestamp}*")
+
     # Rerun to refresh the display
     st.rerun()
+
 
 col1, col2 = st.columns([3, 1])
 with col2:
