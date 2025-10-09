@@ -1,4 +1,3 @@
-from src.chunking import *
 import torch
 from transformers import AutoTokenizer, AutoModel
 from pathlib import Path
@@ -108,7 +107,7 @@ def recursive_char_split(text, chunk_size=750, overlap=70,
 
     return final_chunks
 
-def chunk_text(text, goal="exact_size", chunk_size=100, overlap=20):
+def chunk_text(text, goal="exact_size", chunk_size=800, overlap=20):
     """
     Automatically selects which chunking function to use based on the goal.
 
@@ -181,3 +180,4 @@ def cosine_sim(a, b):
         magnitude_b += j**2
     
     return dot_value / (magnitude_a**0.5 * magnitude_b**0.5)
+    

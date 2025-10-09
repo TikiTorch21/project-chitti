@@ -22,6 +22,7 @@ Question: {}
 
 Context: {}
 '''
+formatted_chunks_str = ""
 
 
 # ------------ Helper ------------
@@ -89,8 +90,12 @@ with st.sidebar:
                     progress.progress(int(idx / total *100))
 
                 progress.empty()
+                
+                # Chunking and embedding text from pdf
+                chunks = chunk_text(text=text)
+                pdf_embeddings = get_embeddings(chunks=chunks)
 
-# Chatbot Portion
+# Chatbot portion
 
 
 # Initialize chat history in session state
@@ -132,21 +137,20 @@ if prompt := st.chat_input("Ask Chitti"):
     # This is also where chunks are being returned
 
     prompt_embeddings = get_embeddings(chunks=prompt)
-    chunks = recursive_char_split(text=text)
-    pdf_embeddings = get_embeddings(chunks=chunks)
     
-    embedding_sim_score: dict = {c+1: cosine_sim(ce, prompt_embeddings).item() for c, ce in enumerate(pdf_embeddings)}
-    # relevant_chunk = chunks[max(embedding_sim_score, key=embedding_sim_score.get)]
+    # Get sim score of prompt embedding & pdf embeddings, then get top 3 chunks and their ids
+    embedding_sim_score: dict = {c: cosine_sim(ce, prompt_embeddings).item() for c, ce in enumerate(pdf_embeddings)}
     relevant_chunk_ids = (sorted(embedding_sim_score, key=embedding_sim_score.get, reverse=True)[:3])
     relevant_chunks = [chunks[id] for id in relevant_chunk_ids]
     
-
+    for idx, chunk in enumerate(relevant_chunks):
+        formatted_chunks_str += f"CHUNK #{idx+1}: \n{chunk} \n\n"
     
 
 
 
     # Display formatted prompt..
-    reply_text = f"You said: {PROMPT.format(prompt, relevant_chunks)}"
+    reply_text = f"You said: {PROMPT.format(prompt, formatted_chunks_str)}"
     reply_timestamp = datetime.now().strftime("%H:%M:%S")
 
 
