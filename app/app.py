@@ -5,6 +5,7 @@ sys.path.insert(0, project_path)
 import base64
 from src.utils.pdf_utils import *
 from src.chunking_embedding import *
+from src.llm_utils import *
 import pymupdf
 from PIL import Image
 from datetime import datetime
@@ -118,24 +119,7 @@ with chat_container:
 
 # Chat input (always at bottom)
 if prompt := st.chat_input("Ask Chitti"):
-    # Add user message to chat history
-    timestamp = datetime.now().strftime("%H:%M:%S")
-    user_message = {
-        "role": "user", 
-        "content": prompt,
-        "timestamp": timestamp
-    }
-    st.session_state.messages.append(user_message)
-
-    # Display the new user message immediately
-    with chat_container:
-        with st.chat_message("user"):
-            st.write(prompt)
-            st.caption(f"*{timestamp}*")
-
-    # Reply to user
-    # This is also where chunks are being returned
-
+    # Embed prompt when it's entered
     prompt_embeddings = get_embeddings(chunks=prompt)
     
     # Get sim score of prompt embedding & pdf embeddings, then get top 3 chunks and their ids
@@ -147,10 +131,33 @@ if prompt := st.chat_input("Ask Chitti"):
         formatted_chunks_str += f"CHUNK #{idx+1}: \n{chunk} \n\n"
     
 
+    # Add user message to chat history
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    user_message = {
+        "role": "user", 
+        "content": prompt,
+        "timestamp": timestamp
+    }
+    
+    st.session_state.messages.append(user_message)
 
+    # Display the new user message immediately
+    with chat_container:
+        with st.chat_message("user"):
+            st.write(prompt)
+            st.caption(f"*{timestamp}*")
+
+
+    temp_messages = st.session_state.messages.copy()
+
+    temp_messages[-1] = {
+        "role": "user",
+        "content": PROMPT.format(prompt, formatted_chunks_str)
+    }
 
     # Display formatted prompt..
-    reply_text = f"You said: {PROMPT.format(prompt, formatted_chunks_str)}"
+    reply = llm_convo(messages=temp_messages)
+    reply_text = f"{reply}"
     reply_timestamp = datetime.now().strftime("%H:%M:%S")
 
 
