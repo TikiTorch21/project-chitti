@@ -14,7 +14,7 @@ import streamlit as st
 
 # ------------ Config ------------
 MAX_FILES = 3
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+MAX_FILE_SIZE = 15 * 1024 * 1024  # 5 MB
 PROMPT = '''
 You are a helpful teaching assistant. Your task is to answer the user's question given the context of the information. 
 Always use the information given to you to answer the question, and do not make anything up. 
@@ -23,16 +23,9 @@ Question: {}
 
 Context: {}
 '''
-formatted_chunks_str = ""
 
 
 # ------------ Helper ------------
-def extract_text(pdf_bytes: bytes) -> str:
-    """
-    Extract all text from a PDF using pymupdf
-    """
-    doc = pymupdf.open(stream=pdf_bytes, filetype='pdf')
-    return "\n\n".join(page.get_text("text") for page in doc)
 
 @st.cache_data(show_spinner=False)
 def render_page_image(pdf_bytes: bytes, page_number: int = 0, zoom: float = 2.0) -> Image.Image:
@@ -71,9 +64,9 @@ with st.sidebar:
                     pdf_bytes = uploaded_file.read()
 
 
-                    # 1 - preview PDF: using image
-                    # Let the user pick a page
-                    page_idx = st.slider("Choose page", min_value=1, max_value=10, value=1)
+                    doc = pymupdf.open(stream=pdf_bytes, filetype='pdf')
+                    page_count = len(doc)
+                    page_idx = st.slider("Choose page", min_value=1, max_value=page_count, value=1)
                     try:
                         img = render_page_image(pdf_bytes, page_number=page_idx-1, zoom=1.0)
                         st.image(img, caption=f"Page {page_idx-1}", use_container_width=True)
@@ -83,27 +76,29 @@ with st.sidebar:
                     # 2 - Extract & Display the PDF text
                     with st.expander("Show extracted text"):
                         text = clean_pdf_text(text=extract_text(pdf_bytes))
-                        if text.strip():
+                        if text.strip(): 
                             st.text_area("Full text", text, height=600)
                         else:
                             st.write("_ NO TEXT FOUND _")
+                    
+                    chunks = chunk_text(text=text)
+                    pdf_embeddings = get_embeddings(chunks=chunks)
+                    if "file_data" not in st.session_state:
+                        st.session_state.file_data = {}
 
+                    st.session_state.file_data[uploaded_file.name] = {
+                        "chunks": chunks,
+                        "embeddings": pdf_embeddings,
+                        "text": text
+                    }
                     progress.progress(int(idx / total *100))
 
                 progress.empty()
                 
-                # Chunking and embedding text from pdf
-                chunks = chunk_text(text=text)
-                pdf_embeddings = get_embeddings(chunks=chunks)
-
 # Chatbot portion
 
 
 # Initialize chat history in session state
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-# Initialize messages list in session_state if not already
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -119,15 +114,20 @@ with chat_container:
 
 # Chat input (always at bottom)
 if prompt := st.chat_input("Ask Chitti"):
+    if "file_data" not in st.session_state or not st.session_state.file_data:
+        st.error("Please upload a PDF file first!")
+        st.stop()
+    
     # Embed prompt when it's entered
     prompt_embeddings = get_embeddings(chunks=prompt)
     
     # Get sim score of prompt embedding & pdf embeddings, then get top 3 chunks and their ids
-    embedding_sim_score: dict = {c: cosine_sim(ce, prompt_embeddings).item() for c, ce in enumerate(pdf_embeddings)}
+    embedding_sim_score: dict = {c: cosine_sim(ce, prompt_embeddings) for c, ce in enumerate(pdf_embeddings)}
     relevant_chunk_ids = (sorted(embedding_sim_score, key=embedding_sim_score.get, reverse=True)[:3])
     relevant_chunks = [chunks[id] for id in relevant_chunk_ids]
     
     for idx, chunk in enumerate(relevant_chunks):
+        formatted_chunks_str = ""  # Reset for each new query
         formatted_chunks_str += f"CHUNK #{idx+1}: \n{chunk} \n\n"
     
 

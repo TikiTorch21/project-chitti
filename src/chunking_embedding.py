@@ -7,6 +7,7 @@ from sentence_transformers import SentenceTransformer
 import pymupdf
 import tiktoken
 import numpy as np
+import torch.nn.functional as F
 
 
 
@@ -107,7 +108,7 @@ def recursive_char_split(text, chunk_size=750, overlap=70,
 
     return final_chunks
 
-def chunk_text(text, goal="exact_size", chunk_size=800, overlap=20):
+def chunk_text(text, goal="exact_size", chunk_size=2000, overlap=20):
     """
     Automatically selects which chunking function to use based on the goal.
 
@@ -157,27 +158,5 @@ def get_embeddings(chunks, batch_size=8):
     return model.encode(chunks, convert_to_tensor=True, show_progress_bar=True, batch_size=batch_size)
 
 def cosine_sim(a, b):
-    """
-    Calculate the cosine similarity between two vectors.
-
-    Parameters:
-    a (list): First vector
-    b (list): Second vector
-
-    Returns:
-    float: Cosine similarity between the two vectors
-    """
-    if len(a) != len(b):
-        raise ValueError("Embedding lengths do not match")
-    
-    dot_value = 0
-    magnitude_a = 0
-    magnitude_b = 0
-
-    for i, j in zip(a, b):
-        dot_value += i * j
-        magnitude_a += i**2
-        magnitude_b += j**2
-    
-    return dot_value / (magnitude_a**0.5 * magnitude_b**0.5)
+    return F.cosine_similarity(a.unsqueeze(0), b.unsqueeze(0)).item()
     
