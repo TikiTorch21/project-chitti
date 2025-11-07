@@ -1,21 +1,20 @@
-#from thefuzz import fuzz
+# from thefuzz import fuzz
 import pymupdf
-import time
-from pypdf import PdfReader
-from pathlib import Path
 import re
+
 
 def extract_text(pdf_bytes: bytes) -> str:
     """
     Extract all text from a PDF using pymupdf
     """
-    doc = pymupdf.open(stream=pdf_bytes, filetype='pdf')
+    doc = pymupdf.open(stream=pdf_bytes, filetype="pdf")
     return "\n\n".join(page.get_text("text") for page in doc)
+
 
 def clean_pdf_text(text: str) -> str:
     """
     Clean extracted PDF text for RAG preprocessing.
-    
+
     Steps:
     1. Normalize whitespace
     2. Remove extra line breaks while keeping paragraph breaks
