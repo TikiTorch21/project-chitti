@@ -1,14 +1,7 @@
-import torch
-from transformers import AutoTokenizer, AutoModel
-from pathlib import Path
 import os
 import warnings
 from sentence_transformers import SentenceTransformer
-import pymupdf
-import tiktoken
-import numpy as np
 import torch.nn.functional as F
-
 
 
 warnings.filterwarnings("ignore", message=".*resource_tracker.*")
@@ -17,7 +10,6 @@ warnings.filterwarnings("ignore", message=".*resource_tracker.*")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-
 
 
 def fixed_tokens(text, chunk_size=100, overlap=20):
@@ -36,7 +28,7 @@ def fixed_tokens(text, chunk_size=100, overlap=20):
     chunks = []
 
     for i in range(0, len(text), step):
-        chunk = text[i:i+chunk_size]   # slice by characters
+        chunk = text[i : i + chunk_size]  # slice by characters
         chunks.append(chunk)
 
         if i + chunk_size >= len(text):
@@ -44,8 +36,10 @@ def fixed_tokens(text, chunk_size=100, overlap=20):
 
     return chunks
 
-def recursive_char_split(text, chunk_size=750, overlap=70, 
-                         separators=None, min_chunk_size=None):
+
+def recursive_char_split(
+    text, chunk_size=750, overlap=70, separators=None, min_chunk_size=None
+):
     """
     Recursively splits text into chunks using progressively smaller separators.
     Ensures overlap between chunks and avoids cutting in the middle of sentences when possible.
@@ -54,9 +48,9 @@ def recursive_char_split(text, chunk_size=750, overlap=70,
         text (str): The text to split.
         chunk_size (int, optional): Maximum chunk length. Defaults to 200.
         overlap (int, optional): Overlap size between chunks. Defaults to 20.
-        separators (list, optional): List of separators (from largest to smallest). 
+        separators (list, optional): List of separators (from largest to smallest).
                                      Defaults to ["\n\n", ". ", " ", ""].
-        min_chunk_size (int, optional): Minimum acceptable chunk size before merging. 
+        min_chunk_size (int, optional): Minimum acceptable chunk size before merging.
                                         Defaults to 0.2 * chunk_size.
 
     Returns:
@@ -94,7 +88,7 @@ def recursive_char_split(text, chunk_size=750, overlap=70,
             else:  # final fallback: split by characters
                 step = chunk_size - overlap
                 for i in range(0, len(c), step):
-                    new_chunks.append(c[i:i+chunk_size].strip())
+                    new_chunks.append(c[i : i + chunk_size].strip())
 
         chunks = new_chunks
 
@@ -108,6 +102,7 @@ def recursive_char_split(text, chunk_size=750, overlap=70,
 
     return final_chunks
 
+
 def chunk_text(text, goal="exact_size", chunk_size=2000, overlap=20):
     """
     Automatically selects which chunking function to use based on the goal.
@@ -119,30 +114,35 @@ def chunk_text(text, goal="exact_size", chunk_size=2000, overlap=20):
                   "hybrid" for both.
     - chunk_size (int): Desired chunk size (characters).
     - overlap (int): Number of characters to overlap between chunks.
-    
+
     Returns:
     - List of text chunks.
     """
     if goal == "exact_size":
         return fixed_tokens(text, chunk_size=chunk_size, overlap=overlap)
-    
+
     elif goal == "semantic":
         return recursive_char_split(text, chunk_size=chunk_size, overlap=overlap)
-    
+
     elif goal == "hybrid":
         # Step 1: semantic split
-        semantic_chunks = recursive_char_split(text, chunk_size=chunk_size*2, overlap=overlap)
+        semantic_chunks = recursive_char_split(
+            text, chunk_size=chunk_size * 2, overlap=overlap
+        )
         # Step 2: enforce exact size on large chunks
         final_chunks = []
         for chunk in semantic_chunks:
             if len(chunk) > chunk_size:
-                final_chunks.extend(fixed_tokens(chunk, chunk_size=chunk_size, overlap=overlap))
+                final_chunks.extend(
+                    fixed_tokens(chunk, chunk_size=chunk_size, overlap=overlap)
+                )
             else:
                 final_chunks.append(chunk)
         return final_chunks
-    
+
     else:
         raise ValueError("Invalid goal. Choose 'exact_size', 'semantic', or 'hybrid'.")
+
 
 def get_embeddings(chunks, batch_size=8):
     """
@@ -155,8 +155,10 @@ def get_embeddings(chunks, batch_size=8):
     Returns:
     - embeddings (list): List of embeddings for the input text chunks
     """
-    return model.encode(chunks, convert_to_tensor=True, show_progress_bar=True, batch_size=batch_size)
+    return model.encode(
+        chunks, convert_to_tensor=True, show_progress_bar=True, batch_size=batch_size
+    )
+
 
 def cosine_sim(a, b):
     return F.cosine_similarity(a.unsqueeze(0), b.unsqueeze(0)).item()
-    

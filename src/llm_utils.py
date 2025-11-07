@@ -1,18 +1,15 @@
 import requests
 from requests.exceptions import RequestException, Timeout
 
+
 def llm_convo(messages, model: str = "gemma3:1b", timeout: int = 30):
     if model is None:
         model = os.getenv("OLLAMA_MODEL", "gemma3:1b")
     try:
         response = requests.post(
             "http://localhost:11434/api/chat",
-            json={
-                "model": model,
-                "messages": messages,
-                "stream": False
-            },
-            timeout=timeout
+            json={"model": model, "messages": messages, "stream": False},
+            timeout=timeout,
         )
         response.raise_for_status()
         return response.json()["message"]["content"]

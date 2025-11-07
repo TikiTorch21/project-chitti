@@ -1,5 +1,6 @@
 import requests
 
+
 def chat_with_gemma(model: str = "gemma3:1b"):
     """
     A continuous chat loop using Gemma via Ollama.
@@ -16,16 +17,14 @@ def chat_with_gemma(model: str = "gemma3:1b"):
             break
 
         # Append user's message to history
-        messages.append({"role": "user", "content": f"{user_input}. Answer in 2 lines please."})
+        messages.append(
+            {"role": "user", "content": f"{user_input}. Answer in 2 lines please."}
+        )
 
         # Send request with full message history
         response = requests.post(
             "http://localhost:11434/api/chat",
-            json={
-                "model": model,
-                "messages": messages,
-                "stream": False
-            }
+            json={"model": model, "messages": messages, "stream": False},
         )
         reply = response.json()["message"]["content"]
 
@@ -33,7 +32,8 @@ def chat_with_gemma(model: str = "gemma3:1b"):
 
         # Append assistant reply to history so it remembers context
         messages.append({"role": "assistant", "content": reply})
-    
+
     return messages
+
 
 chat_with_gemma()
